@@ -42,8 +42,7 @@
 
 int isLightKilled = wiringPiSetup(); //if found the black line then make it 1
 //also call wiringPiSetup before pca
-int isLightNear; //if the light is nearby the make it 1
-//double useMaxSpeed = MAX_SPEED;
+int lightWidth = 0; //the width of the light in view
 
 pca myPca(0x40, 7);
 opcv camera;
@@ -102,13 +101,13 @@ void findLight(double duty)
     turn(duty);
     //delay(30);
     //stopMotors(motors);
-    int light;
-    if (isLightKilled == 1 || isLightNear == 0)
+    int light = camera.readx(&lightWidth);
+    if (isLightKilled == 1)
         return;
-    while (camera.readx() == -1 && isLightKilled == 0 && isLightNear == 0)
+    while (camera.readx(&lightWidth) == -1 && isLightKilled == 0 && isLightNear == 0)
         ;
     stopMotors();
-    light = camera.readx();
+    light = camera.readx(&lightWidth);
     if (light >= FULL_IMAGE / 2 - HALF_WIDTH && light <= FULL_IMAGE / 2 - HALF_WIDTH && isLightKilled == 0 && isLightNear == 0)
     {
         return;
@@ -127,7 +126,7 @@ void findLight(double duty)
 
 void goStraight(double straightSpeed)
 {
-    int x = camera.readx();
+    int x = camera.readx(&lightWidth);
     if (x == -1 && isLightKilled == 0 && isLightNear == 0)
         return;
     double spinSpeed = double(FULL_IMAGE / 2 - x) / double(FULL_IMAGE / 2) * 0.4 * straightSpeed;
@@ -171,7 +170,7 @@ void setup()
     pinMode(front, INPUT);
     wiringPiISR(down, INT_EDGE_RISING, &killLight);
     wiringPiISR(front, INT_EDGE_FALLING, &slowDown);
-//    wiringPiISR(front, INT_EDGE_RISING, &speedUp);
+    //    wiringPiISR(front, INT_EDGE_RISING, &speedUp);
 
     //    myMotor[0].setup(24, 25, myPca, 0);
     //    myMotor[1].setup(22, 23, myPca, 1);
@@ -194,7 +193,7 @@ int main()
     {
         while (isLightKilled == 0 && isLightNear == 0)
         {
-            int light = camera.readx();
+            int light = camera.readx(&lightWidth);
             if (isLightKilled == 0 && isLightNear == 0 && light == -1)
                 turn(MIN_SPEED);
             else if (isLightKilled == 0 && isLightNear == 0)
@@ -239,4 +238,3 @@ int main()
     }*/
     return 0;
 }
-
