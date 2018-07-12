@@ -101,23 +101,23 @@ void findLight(double duty)
     turn(duty);
     //delay(30);
     //stopMotors(motors);
-    int light = camera.readx(&lightWidth);
+    int light;
     if (isLightKilled == 1)
         return;
-    while (camera.readx(&lightWidth) == -1 && isLightKilled == 0 && isLightNear == 0)
+    while (camera.readx(lightWidth) == -1 && isLightKilled == 0)
         ;
     stopMotors();
-    light = camera.readx(&lightWidth);
-    if (light >= FULL_IMAGE / 2 - HALF_WIDTH && light <= FULL_IMAGE / 2 - HALF_WIDTH && isLightKilled == 0 && isLightNear == 0)
+    light = camera.readx(lightWidth);
+    if (light >= FULL_IMAGE / 2 - HALF_WIDTH && light <= FULL_IMAGE / 2 - HALF_WIDTH && isLightKilled == 0)
     {
         return;
     }
-    else if (light < FULL_IMAGE / 2 - HALF_WIDTH && isLightKilled == 0 && isLightNear == 0)
+    else if (light < FULL_IMAGE / 2 - HALF_WIDTH && isLightKilled == 0)
     {
         findLight(MIN_SPEED);
         return;
     }
-    else if (light > FULL_IMAGE / 2 + HALF_WIDTH && isLightKilled == 0 && isLightNear == 0)
+    else if (light > FULL_IMAGE / 2 + HALF_WIDTH && isLightKilled == 0)
     {
         findLight(-MIN_SPEED);
         return;
@@ -126,9 +126,11 @@ void findLight(double duty)
 
 void goStraight(double straightSpeed)
 {
-    int x = camera.readx(&lightWidth);
-    if (x == -1 && isLightKilled == 0 && isLightNear == 0)
+    int x = camera.readx(lightWidth);
+    if (x == -1 && isLightKilled == 0)
         return;
+    if(isLightKilled == 0 && lightWidth>40)
+        straightSpeed /= 3.0;
     double spinSpeed = double(FULL_IMAGE / 2 - x) / double(FULL_IMAGE / 2) * 0.4 * straightSpeed;
     speed[0] = straightSpeed + spinSpeed / 2.0;
     speed[1] = -straightSpeed + spinSpeed / 2.0;
@@ -140,18 +142,6 @@ void killLight()
 {
     if (digitalRead(down) == 1)
         isLightKilled = 1;
-}
-
-void slowDown()
-{
-    if (digitalRead(front) == 0)
-        isLightNear = 1;
-}
-
-void speedUp()
-{
-    if (digitalRead(front) == 1)
-        isLightNear = 0;
 }
 
 void backup(double duty)
@@ -169,14 +159,12 @@ void setup()
     pinMode(down, INPUT);
     pinMode(front, INPUT);
     wiringPiISR(down, INT_EDGE_RISING, &killLight);
-    wiringPiISR(front, INT_EDGE_FALLING, &slowDown);
     //    wiringPiISR(front, INT_EDGE_RISING, &speedUp);
 
     //    myMotor[0].setup(24, 25, myPca, 0);
     //    myMotor[1].setup(22, 23, myPca, 1);
     //    myMotor[2].setup(27, 28, myPca, 2);
     isLightKilled = 0;
-    isLightNear = 0;
 
     myMotor[0].setup(25, 24, myPca, 0);
     myMotor[1].setup(23, 22, myPca, 1);
@@ -191,33 +179,25 @@ int main()
 
     while (1)
     {
-        while (isLightKilled == 0 && isLightNear == 0)
+        while (isLightKilled == 0)
         {
-            int light = camera.readx(&lightWidth);
-            if (isLightKilled == 0 && isLightNear == 0 && light == -1)
+            int light = camera.readx(lightWidth);
+            if (isLightKilled == 0 && light == -1)
                 turn(MIN_SPEED);
-            else if (isLightKilled == 0 && isLightNear == 0)
+            else if (isLightKilled == 0)
                 goStraight(MAX_SPEED);
         }
-        while (isLightNear == 1)
-        {
-            cout << "light nearby" << endl;
-            if (isLightKilled == 0)
-                goStraight(0.3);
-            else
-            {
-                stopMotors();
-                myServo.write(130);
-                delay(1200);
-                myServo.write(0);
-                delay(600);
-                backup(MAX_SPEED / 2.0);
-                delay(500);
-                stopMotors();
-                isLightKilled = isLightNear = 0;
-            }
-        }
+        stopMotors();
+        myServo.write(130);
+        delay(1200);
+        myServo.write(0);
+        delay(600);
+        backup(MAX_SPEED / 2.0);
+        delay(500);
+        stopMotors();
+        isLightKilled = 0;
     }
+    
     /*
     for(int i = 0; i < 3; i++)
     {
