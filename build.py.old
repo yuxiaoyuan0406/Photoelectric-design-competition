@@ -9,3 +9,4 @@ g++ -std=c++11 -Wall main.cpp -o main \
 -L/home/dennis/Programs/C/lib/wmx/opencv \
 -lwiringPi -lmotor -lopcv
 ''')
+

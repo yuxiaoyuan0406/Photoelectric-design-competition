@@ -12,3 +12,4 @@ g++ -std=c++11 -Wall main.cpp -o main \
 -lwiringPi -lmotor -lopcv \
 -lraspicam -lraspicam_cv -lopencv_core -lopencv_highgui -lopencv_imgcodecs
 ''')
+
