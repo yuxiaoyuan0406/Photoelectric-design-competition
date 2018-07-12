@@ -44,6 +44,8 @@ int isLightKilled = wiringPiSetup(); //if found the black line then make it 1
 //also call wiringPiSetup before pca
 int lightWidth = 0; //the width of the light in view
 
+double straightSpeed;
+
 pca myPca(0x40, 7);
 opcv camera;
 motor myMotor[3];
@@ -124,17 +126,21 @@ void findLight(double duty)
     }
 }
 
-void goStraight(double straightSpeed)
+void goStraight()
 {
     int x = camera.readx(lightWidth);
+    double modifiedSpeed = 0.7;
     if (x == -1 && isLightKilled == 0)
         return;
-    if(isLightKilled == 0 && lightWidth>40)
-        straightSpeed /= 3.0;
-    double spinSpeed = double(FULL_IMAGE / 2 - x) / double(FULL_IMAGE / 2) * 0.4 * straightSpeed;
-    speed[0] = straightSpeed + spinSpeed / 2.0;
-    speed[1] = -straightSpeed + spinSpeed / 2.0;
-    speed[2] = spinSpeed;
+    if (isLightKilled == 0 && lightWidth > 20)
+    {
+        straightSpeed = 0.2;
+        modifiedSpeed = 0.3;
+    }
+    double spinSpeed = double(FULL_IMAGE / 2 - x) / double(FULL_IMAGE / 2) * 0.4 * modifiedSpeed;
+    speed[0] = straightSpeed + spinSpeed / 1.5;
+    speed[1] = -straightSpeed + spinSpeed / 1.5;
+    speed[2] = 1.2 * spinSpeed;
     writeSpeed();
 }
 
@@ -146,7 +152,7 @@ void killLight()
 
 void backup(double duty)
 {
-    speed[0] = duty;
+    speed[0] = -duty;
     speed[1] = duty;
     speed[2] = 0;
     writeSpeed();
@@ -179,25 +185,26 @@ int main()
 
     while (1)
     {
+        straightSpeed = MAX_SPEED;
         while (isLightKilled == 0)
         {
             int light = camera.readx(lightWidth);
             if (isLightKilled == 0 && light == -1)
                 turn(MIN_SPEED);
             else if (isLightKilled == 0)
-                goStraight(MAX_SPEED);
+                goStraight();
         }
         stopMotors();
         myServo.write(130);
         delay(1200);
         myServo.write(0);
         delay(600);
-        backup(MAX_SPEED / 2.0);
-        delay(500);
+        backup(MAX_SPEED);
+        delay(1000);
         stopMotors();
         isLightKilled = 0;
     }
-    
+
     /*
     for(int i = 0; i < 3; i++)
     {
