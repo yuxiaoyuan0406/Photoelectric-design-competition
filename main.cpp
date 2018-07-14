@@ -31,11 +31,14 @@
  * 
 *************************************************************/
 
-#define MIN_SPEED 0.14 //minimum speed
-#define MAX_SPEED 0.70 //maximum speed
+#define MIN_SPEED 0.122 //minimum speed
+#define MAX_SPEED 0.70  //maximum speed
 
 #define FULL_IMAGE 640 //image width
 #define HALF_WIDTH 200 //half of the tolerate width
+
+#define servoBegin 0
+#define servoWork 128
 
 #define down 29  //look down
 #define front 26 //look forward
@@ -43,8 +46,6 @@
 int isLightKilled = wiringPiSetup(); //if found the black line then make it 1
 //also call wiringPiSetup before pca
 int lightWidth = 0; //the width of the light in view
-
-double straightSpeed;
 
 pca myPca(0x40, 7);
 opcv camera;
@@ -69,30 +70,10 @@ void turn(double duty)
 
 void stopMotors()
 {
-    /*
-    unsigned int delayTime = (unsigned(speed[0]) + unsigned(speed[1])) / 2.0 * 0.9 * 130;
-    speed[0] = (2.0 * (speed[0] > 0) - 1.0) * -.9;
-    speed[1] = (2.0 * (speed[1] > 0) - 1.0) * -.9;
-    speed[2] = 0;
-    writeSpeed();
-    delay(delayTime);
     for (int i = 0; i < 3; ++i)
-        speed[i] = 0;
+        speed[i] = -myMotor[i].currentSpeed;
     writeSpeed();
-    */
-
-    for (int i = 0; i < 3; ++i)
-    {
-        for (int j = 0; j < 3; ++j)
-            speed[j] = -.9;
-        writeSpeed();
-        delay(15);
-        for (int j = 0; j < 3; ++j)
-            speed[j] = .9;
-        writeSpeed();
-        delay(15);
-    }
-
+    delay(100);
     for (int i = 0; i < 3; ++i)
         speed[i] = 0;
     writeSpeed();
@@ -129,18 +110,19 @@ void findLight(double duty)
 void goStraight()
 {
     int x = camera.readx(lightWidth);
-    double modifiedSpeed = 0.7;
+    double straightSpeed = 0.20;
+    //double modifiedSpeed = 0.9 * straightSpeed;
     if (x == -1 && isLightKilled == 0)
         return;
-    if (isLightKilled == 0 && lightWidth > 20)
+    if (isLightKilled == 0 && lightWidth < 10)
     {
-        straightSpeed = 0.2;
-        modifiedSpeed = 0.3;
+        straightSpeed = MAX_SPEED;
+//        modifiedSpeed = 0.9;
     }
-    double spinSpeed = double(FULL_IMAGE / 2 - x) / double(FULL_IMAGE / 2) * 0.4 * modifiedSpeed;
+    double spinSpeed = double(FULL_IMAGE / 2 - x) / double(FULL_IMAGE / 2.0 - 15.0) * 0.4 * 0.9 * straightSpeed/*modifiedSpeed*/;
     speed[0] = straightSpeed + spinSpeed / 1.5;
     speed[1] = -straightSpeed + spinSpeed / 1.5;
-    speed[2] = 1.2 * spinSpeed;
+    speed[2] = spinSpeed;
     writeSpeed();
 }
 
@@ -160,7 +142,7 @@ void backup(double duty)
 
 void setup()
 {
-    myServo.write(0);
+    myServo.write(servoBegin);
 
     pinMode(down, INPUT);
     pinMode(front, INPUT);
@@ -185,7 +167,6 @@ int main()
 
     while (1)
     {
-        straightSpeed = MAX_SPEED;
         while (isLightKilled == 0)
         {
             int light = camera.readx(lightWidth);
@@ -194,15 +175,26 @@ int main()
             else if (isLightKilled == 0)
                 goStraight();
         }
-        stopMotors();
-        myServo.write(130);
-        delay(1200);
-        myServo.write(0);
-        delay(600);
-        backup(MAX_SPEED);
-        delay(1000);
-        stopMotors();
-        isLightKilled = 0;
+        if (camera.readx(lightWidth) == -1)
+        {
+            isLightKilled = 0;
+        }
+        else if (lightWidth < 20)
+        {
+            isLightKilled = 0;
+        }
+        else
+        {
+            stopMotors();
+            myServo.write(servoWork);
+            delay(1200);
+            myServo.write(servoBegin);
+            delay(600);
+            backup(MAX_SPEED);
+            delay(500);
+            stopMotors();
+            isLightKilled = 0;
+        }
     }
 
     /*
