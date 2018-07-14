@@ -5,18 +5,18 @@
 #include <iostream>
 /*************************************************************
  * motor0
- * pin_1 ==> 24 ==> OUT3
- * pin_2 ==> 25 ==> OUT4
- * channel ==> pca.0
- * 
- * motor1
- * pin_1 ==> 22 ==> OUT1
- * pin_2 ==> 23 ==> OUT2
+ * pin_1 ==> 23 ==> OUT1
+ * pin_2 ==> 22 ==> OUT2
  * channel ==> pca.1
  * 
- * motor2
+ * motor1
  * pin_1 ==> 27 ==> OUT3
  * pin_2 ==> 28 ==> OUT4
+ * channel ==> pca.0
+ * 
+ * motor2
+ * pin_1 ==> 24 ==> OUT3
+ * pin_2 ==> 25 ==> OUT4
  * channel ==> pca.2
  * 
  * 红外开关1，检测黑线
@@ -37,8 +37,8 @@
 #define FULL_IMAGE 640 //image width
 #define HALF_WIDTH 200 //half of the tolerate width
 
-#define servoBegin 0
-#define servoWork 130
+#define servoBegin 90
+#define servoWork 180
 
 #define down 29  //look down
 #define front 26 //look forward
@@ -154,9 +154,9 @@ void setup()
     //    myMotor[2].setup(27, 28, myPca, 2);
     isLightKilled = 0;
 
-    myMotor[0].setup(25, 24, myPca, 0);
-    myMotor[1].setup(23, 22, myPca, 1);
-    myMotor[2].setup(28, 27, myPca, 2);
+    myMotor[0].setup(23, 22, myPca, 1);
+    myMotor[1].setup(28, 27, myPca, 0);
+    myMotor[2].setup(25, 24, myPca, 2);
 }
 
 int main()
@@ -164,7 +164,7 @@ int main()
     using namespace std;
 
     setup();
-
+    
     while (1)
     {
         while (isLightKilled == 0)
@@ -215,14 +215,20 @@ int main()
     delay(300);
     stopMotors();
     */
-    /*
-    while(1)
+/*
+    while (1)
     {
+        for (int i = 0; i < 3; i++)
+            speed[i] = 0;
+        int i = 0;
+        cout << "input motor" << endl;
+        cin >> i;
         cout << "input speed" << endl;
-        cin >> speed[0];
-        speed[1] = -speed[0];
-        speed[2] = 0;
+        cin >> speed[i];
         writeSpeed();
     }*/
-    return 0;
+    /*    for (int i = 0; i < 3; i++)
+        speed[i] = 0;
+    writeSpeed();
+    return 0;*/
 }
