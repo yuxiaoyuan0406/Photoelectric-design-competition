@@ -38,7 +38,7 @@
 #define HALF_WIDTH 200 //half of the tolerate width
 
 #define servoBegin 0
-#define servoWork 128
+#define servoWork 130
 
 #define down 29  //look down
 #define front 26 //look forward
@@ -189,7 +189,7 @@ int main()
             myServo.write(servoWork);
             delay(1200);
             myServo.write(servoBegin);
-            delay(600);
+            delay(650);
             backup(MAX_SPEED);
             delay(500);
             stopMotors();
