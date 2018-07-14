@@ -32,7 +32,7 @@
 *************************************************************/
 
 #define MIN_SPEED 0.122 //minimum speed
-#define MAX_SPEED 0.70  //maximum speed
+#define MAX_SPEED 0.60  //maximum speed
 
 #define FULL_IMAGE 640 //image width
 #define HALF_WIDTH 200 //half of the tolerate width
@@ -110,19 +110,19 @@ void findLight(double duty)
 void goStraight()
 {
     int x = camera.readx(lightWidth);
-    double straightSpeed = 0.20;
+    double straightSpeed = 0.1735;
     //double modifiedSpeed = 0.9 * straightSpeed;
     if (x == -1 && isLightKilled == 0)
         return;
-    if (isLightKilled == 0 && lightWidth < 10)
+    if (isLightKilled == 0 && lightWidth < 20)
     {
         straightSpeed = MAX_SPEED;
-//        modifiedSpeed = 0.9;
+        //        modifiedSpeed = 0.9;
     }
-    double spinSpeed = double(FULL_IMAGE / 2 - x) / double(FULL_IMAGE / 2.0 - 15.0) * 0.4 * 0.9 * straightSpeed/*modifiedSpeed*/;
+    double spinSpeed = double(FULL_IMAGE / 2 - x) / double(FULL_IMAGE / 2.0 - 0.0) * 0.4 * 0.9 * straightSpeed /*modifiedSpeed*/;
     speed[0] = straightSpeed + spinSpeed / 1.5;
     speed[1] = -straightSpeed + spinSpeed / 1.5;
-    speed[2] = spinSpeed;
+    speed[2] = spinSpeed * 1.6;
     writeSpeed();
 }
 
@@ -179,8 +179,17 @@ int main()
         {
             isLightKilled = 0;
         }
-        else if (lightWidth < 20)
+        else if (lightWidth < 100)
         {
+            //            isLightKilled = 0;
+            stopMotors();
+            stopMotors();
+            speed[0] = -MAX_SPEED * sqrt(3.0) / 2.0;
+            speed[1] = speed[0];
+            speed[2] = -speed[0];//MAX_SPEED;
+            writeSpeed();
+            delay(300);
+            stopMotors();
             isLightKilled = 0;
         }
         else
@@ -191,7 +200,7 @@ int main()
             myServo.write(servoBegin);
             delay(650);
             backup(MAX_SPEED);
-            delay(500);
+            delay(400);
             stopMotors();
             isLightKilled = 0;
         }
