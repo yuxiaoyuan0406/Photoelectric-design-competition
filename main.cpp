@@ -1,6 +1,7 @@
 #include "opcv.h"
 #include "motor.h"
 #include <wiringPi.h>
+#include <cmath>
 
 #include <iostream>
 /*************************************************************
@@ -19,33 +20,35 @@
  * pin_2 ==> 25 ==> OUT4
  * channel ==> pca.2
  * 
- * 红外开关1，检测黑线
+ * 红外开关0
+ * blue     ==> GND
+ * brown    ==> +5V
+ * black    ==> 1
+ * 
+ * 红外开关1
  * blue     ==> GND
  * brown    ==> +5V
  * black    ==> 29
  * 
- * 红外开关2，水平检测障碍
- * blue     ==> GND
- * brown    ==> +5V
- * black    ==> 26
- * 
 *************************************************************/
 
 //speed to use(100%)
-#define MIN_SPEED 0.122 //minimum speed
-#define MAX_SPEED 0.60  //maximum speed
+#define MIN_SPEED 0.128 //minimum speed
+#define MAX_SPEED 0.80  //maximum speed
 
 //light in view(px)
-#define FULL_IMAGE 640 //image width
+#define FULL_WIDTH 640 //image width
+#define FULL_HIGHT 480
 #define HALF_WIDTH 300 //half of the tolerate width
 #define BREAK_WIDTH 65
+#define BREAK_HIGHT 250
 
 //servo mode(degrees)
 #define servoBegin 90
 #define servoWork 180
 
 const int lightSwitch[] =
-    {1, 29};
+    {1, 4, 5, 6, 26};
 
 int isLightKilled = wiringPiSetup(); //if found the black line then make it 1
 //also call wiringPiSetup before pca
@@ -89,20 +92,22 @@ void stopMotors()
 
 void slideAside()
 {
-    speed[0] = -MAX_SPEED * sqrt(3.0) / 2; //speed adjust
+    std::cout << "slide aside..." << std::endl;
+    speed[0] = -MAX_SPEED / 2.5; //speed adjust
     speed[1] = speed[0];
     speed[2] = MAX_SPEED;
     writeSpeed();
-    delay(300);   //wait for this time
+    delay(500);   //wait for this time
     stopMotors(); //stop
 }
 
 void findLight(double duty)
 {
+    std::cout << "enter findLight func" << std::endl;
     int light;
     if (isLightKilled == 1)
         return;
-    light = camera.readx(lightWidth);
+    light = camera.readx(lightWidth, lightHight);
     if (isLightKilled == 1)
         return;
     lastSeeLight = light > 320 ? -1 : 1;
@@ -111,48 +116,63 @@ void findLight(double duty)
     //delay(30);
     //stopMotors(motors);
     while (camera.readx(lightWidth) == -1 && isLightKilled == 0)
-        ;
-    if (light < FULL_IMAGE / 2 - HALF_WIDTH && light > FULL_IMAGE / 2 - HALF_WIDTH && isLightKilled == 0)
+        std::cout << "finding..." << std::endl;
+    if (light < FULL_WIDTH / 2 - HALF_WIDTH && light > FULL_WIDTH / 2 - HALF_WIDTH && isLightKilled == 0)
     {
+        std::cout << "light found!\nfirst adjust" << std::endl;
         findLight(MIN_SPEED);
     }
     stopMotors();
     return;
 }
 
-void goStraight()
+void farFieldAdjust()
 {
-    int x = camera.readx(lightWidth);
-    /*    double straightSpeed = 0.1735;
-    double modifiedSpeed = 1.3 * straightSpeed;
-    if (x == -1 && isLightKilled == 0)
-        return;
-    if (isLightKilled == 0 && lightWidth < 70)
-    {
-        straightSpeed = MAX_SPEED;
-        modifiedSpeed = 0.7 * straightSpeed;
-    }
-    double spinSpeed = double(FULL_IMAGE / 2 - x) / double(FULL_IMAGE / 2.0 - 0.0) * 0.4 * 0.9 * straightSpeed  modifiedSpeed;*/
+    std::cout << "enter farFieldAdjust func" << std::endl;
+    int x = camera.readx(lightWidth, lightHight);
     double straightSpeed;
     double modifiedSpeed;
-    if (x == -1 || isLightKilled == 1 || lightWidth > BREAK_WIDTH)
+    if (x == -1 || isLightKilled == 1 || lightWidth > BREAK_WIDTH || lightHight > BREAK_HIGHT)
         return;
-    else if (isLightKilled == 0 && lightWidth <= 60)
+    else if (isLightKilled == 0 && lightWidth <= BREAK_WIDTH)
     {
         straightSpeed = MAX_SPEED;
-        modifiedSpeed = 0.5 * straightSpeed;
-        double spinSpeed = double(FULL_IMAGE / 2 - x) / double(FULL_IMAGE / 2.0 - 0.0) * 0.65 * /*straightSpeed */ modifiedSpeed;
-        speed[0] = straightSpeed + spinSpeed * 1.5;
-        speed[1] = -straightSpeed + spinSpeed * 1.5;
-        speed[2] = spinSpeed * 1.6;
+        modifiedSpeed = 0.5 * 0.5;
+        double spinSpeed = sin(double(FULL_WIDTH / 2 - x) / double(FULL_WIDTH / 2.0) * M_PI_2) * /*0.65 * straightSpeed */ modifiedSpeed;
+        speed[0] = straightSpeed + spinSpeed * 0.9;
+        speed[1] = -straightSpeed + spinSpeed * 0.9;
+        speed[2] = spinSpeed * 1.7;
     }
     writeSpeed();
 }
 
+void middleFieldAdjust()
+{
+    std::cout << "enter middleFieldAdjust func" << std::endl;
+    int x = camera.readx(lightWidth, lightHight);
+    double straightSpeed;
+    double modifiedSpeed;
+    if (x == -1 || isLightKilled == 1 || lightWidth > BREAK_WIDTH || lightHight > BREAK_HIGHT)
+        return;
+    else if (isLightKilled == 0 && lightWidth <= 60)
+    {
+        straightSpeed = MAX_SPEED;
+        modifiedSpeed = 0.5 * 0.5;
+        double spinSpeed = sin(double(FULL_WIDTH / 2 - x) / double(FULL_WIDTH / 2.0) * M_PI_2) * 1.0 * /*0.6 * straightSpeed */ modifiedSpeed;
+        speed[0] = straightSpeed + spinSpeed * 0.6;
+        speed[1] = -straightSpeed + spinSpeed * 0.6;
+        speed[2] = spinSpeed * 1.5;
+    }
+    writeSpeed();
+    std::cout << "middleFieldAdjust speed wrote" << std::endl;
+}
+
 void nearFieldAdjust()
 {
+    std::cout << "enter nearFieldAdjust func" << std::endl;
     while (isLightKilled == 0)
     {
+        std::cout << "adjusting..." << std::endl;
         int light = camera.readx(lightWidth);
         double straightSpeed;
         double modifiedSpeed;
@@ -162,26 +182,31 @@ void nearFieldAdjust()
         {
             straightSpeed = 0.1735;
             modifiedSpeed = 1.5 * straightSpeed;
-            double spinSpeed = double(FULL_IMAGE / 2 - light) / double(FULL_IMAGE / 2.0 - 0.0) * 0.4 * 0.9 * /*straightSpeed */ modifiedSpeed;
+            double spinSpeed = double(FULL_WIDTH / 2 - light) / double(FULL_WIDTH / 2.0 - 0.0) * 0.4 * 0.9 * /*straightSpeed */ modifiedSpeed;
             speed[0] = straightSpeed + spinSpeed / 1.2;
             speed[1] = -straightSpeed + spinSpeed / 1.2;
             speed[2] = spinSpeed / 1.2;
         }
         writeSpeed();
     }
+    std::cout << "nearFieldAdjust done!" << std::endl;
 }
 
 void slightlyAdjust()
 {
+    std::cout << "enter slightlyAdjust func" << std::endl;
     if (digitalRead(lightSwitch[0]) == 0)
     {
+        std::cout << "left switch triggered" << std::endl;
         if (digitalRead(lightSwitch[1]) == 0)
         {
+            std::cout << "right switch triggered" << std::endl;
             stopMotors();
             return;
         }
         else
         {
+            std::cout << "right switch is not triggered\nadjusting..." << std::endl;
             speed[0] = MIN_SPEED;
             speed[1] = MIN_SPEED;
             speed[2] = MIN_SPEED;
@@ -189,22 +214,30 @@ void slightlyAdjust()
     }
     else
     {
+        std::cout << "left switch is not triggered" << std::endl;
         if (digitalRead(lightSwitch[1]) == 0)
         {
+            std::cout << "right switch is triggered\nadjusting..." << std::endl;
             speed[0] = -MIN_SPEED;
             speed[1] = -MIN_SPEED;
             speed[2] = -MIN_SPEED;
         }
         else
         {
+            std::cout << "right switch is not triggered" << std::endl;
             if (camera.readx(lightWidth) == -1 || lightWidth < 200)
             {
+                std::cout << "no light in view or too small" << std::endl;
                 slideAside();
+                delay(300);
+                stopMotors();
                 isLightKilled = 0;
+                std::cout << "reset isLightKilled" << std::endl;
                 return;
             }
             else
             {
+                std::cout << "light in view\ngoing forward..." << std::endl;
                 speed[0] = MIN_SPEED;
                 speed[1] = -MIN_SPEED;
                 speed[2] = 0;
@@ -219,11 +252,15 @@ void slightlyAdjust()
 void killLight()
 {
     if (digitalRead(lightSwitch[0]) == 0 || digitalRead(lightSwitch[1]) == 0)
+    {
+        std::cout << "light switch triggered!\nisLightKilled set to 1" << std::endl;
         isLightKilled = 1;
+    }
 }
 
 void backup(double duty)
 {
+    std::cout << "backing up..." << std::endl;
     speed[0] = -duty;
     speed[1] = duty;
     speed[2] = 0;
@@ -232,8 +269,9 @@ void backup(double duty)
 
 void setup()
 {
+    std::cout << "initializing..." << std::endl;
     myServo.write(servoBegin);
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 5; i++)
     {
         pinMode(lightSwitch[i], INPUT);
         wiringPiISR(lightSwitch[i], INT_EDGE_FALLING, &killLight);
@@ -242,8 +280,8 @@ void setup()
     isLightKilled = 0;
 
     myMotor[0].setup(23, 22, myPca, 1);
-    myMotor[1].setup(28, 27, myPca, 0);
-    myMotor[2].setup(25, 24, myPca, 2);
+    myMotor[1].setup(25, 24, myPca, 2);
+    myMotor[2].setup(28, 27, myPca, 0);
 }
 
 int main()
@@ -254,42 +292,49 @@ int main()
 
     while (1)
     {
-        while (isLightKilled == 0)                //when light switch is not triggered
-        {                                         //stay in this loop
-            int light = camera.readx(lightWidth); //read a coordinate of the light in view
+        while (isLightKilled == 0)                            //when light switch is not triggered
+        {                                                     //stay in this loop
+            int light = camera.readx(lightWidth, lightHight); //read a coordinate of the light in view
             if (isLightKilled == 0 && light == -1)
                 findLight(0.1);
-            else if (isLightKilled == 0 && lightWidth <= BREAK_WIDTH)
-                goStraight();
+            else if (isLightKilled == 0 && lightWidth <= BREAK_WIDTH && lightHight <= BREAK_HIGHT && lightHight > 60)
+                farFieldAdjust();
+            else if (isLightKilled == 0 && lightWidth <= BREAK_WIDTH && lightHight <= 60)
+                middleFieldAdjust();
             else if (isLightKilled == 0 && lightWidth > BREAK_WIDTH)
             {
                 stopMotors();
                 nearFieldAdjust();
             }
         }
-        if (camera.readx(lightWidth) == -1)
+        if (camera.readx(lightWidth) == -1 || lightWidth <= 100)
         {
-            isLightKilled = 0;
-        }
-        else if (lightWidth < 100) //if light is too small but the light switch is triggered
-        {                          //slide aside
-            stopMotors();          //stop motor first
-            stopMotors();          //
+            cout << "no light in view" << endl;
+            //if light is too small but the light switch is triggered
+            //slide aside
+            stopMotors(); //stop motor first
+            //stopMotors();     //
             slideAside();
+            delay(300);
+            stopMotors();
             isLightKilled = 0; //initiate isLightKilled
         }
         else
         {
+            cout << "light nearby" << endl;
             stopMotors();
             slightlyAdjust();
             stopMotors();
+            cout << "slightlyAdjust done!\nkilling light" << endl;
             myServo.write(servoWork);
-            delay(1200);
+            delay(650);
             myServo.write(servoBegin);
             delay(650);
+            cout << "light killed!" << endl;
             backup(MAX_SPEED);
-            delay(400);
+            delay(300);
             stopMotors();
+            cout << "backing up done!\ninitializing isLightKilled" << endl;
             isLightKilled = 0;
         }
     }

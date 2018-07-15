@@ -1,0 +1,26 @@
+                    +---------+------+---+---Pi 3---+---+------+---------+
+                    |   Name  | Mode | V | Physical | V | Mode | Name    |
+                    +---------+------+---+----++----+---+------+---------+
+    PCA.3v3    |    |    3.3v |      |   |  1 || 2  |   |      | 5v      |
+    PCA.SDA    |    |   SDA.1 | ALT0 | 1 |  3 || 4  |   |      | 5v      |
+    PCA.SCL    |    |   SCL.1 | ALT0 | 1 |  5 || 6  |   |      | 0v      |
+    PCA.EN     |    | GPIO. 7 |   IN | 1 |  7 || 8  | 1 | ALT5 | TxD     |
+    PCA.GND    |    |      0v |      |   |  9 || 10 | 1 | ALT5 | RxD     |
+                    | GPIO. 0 |   IN | 0 | 11 || 12 | 0 | IN   | GPIO. 1 |  |   lightSwitch[0]
+                    | GPIO. 2 |   IN | 0 | 13 || 14 |   |      | 0v      |
+                    | GPIO. 3 |   IN | 0 | 15 || 16 | 0 | IN   | GPIO. 4 |  |   lightSwitch[1]
+                    |    3.3v |      |   | 17 || 18 | 0 | IN   | GPIO. 5 |  |   lightSwitch[2]
+                    |    MOSI |   IN | 0 | 19 || 20 |   |      | 0v      |
+                    |    MISO |   IN | 0 | 21 || 22 | 0 | IN   | GPIO. 6 |  |   lightSwitch[3]
+                    |    SCLK |   IN | 0 | 23 || 24 | 1 | IN   | CE0     |
+                    |      0v |      |   | 25 || 26 | 1 | IN   | CE1     |
+                    |   SDA.0 |   IN | 1 | 27 || 28 | 1 | IN   | SCL.0   |
+                    | GPIO.21 |   IN | 1 | 29 || 30 |   |      | 0v      |
+    motor      |    | GPIO.22 |   IN | 1 | 31 || 32 | 0 | IN   | GPIO.26 |  |   lightSwitch[4]
+    motor      |    | GPIO.23 |   IN | 0 | 33 || 34 |   |      | 0v      |
+    motor      |    | GPIO.24 |   IN | 0 | 35 || 36 | 0 | IN   | GPIO.27 |      |   motor
+    motor      |    | GPIO.25 |   IN | 0 | 37 || 38 | 0 | IN   | GPIO.28 |      |   motor
+                    |      0v |      |   | 39 || 40 | 0 | IN   | GPIO.29 |
+                    +---------+------+---+----++----+---+------+---------+
+                    |   Name  | Mode | V | Physical | V | Mode | Name    |
+                    +---------+------+---+---Pi 3---+---+------+---------+
