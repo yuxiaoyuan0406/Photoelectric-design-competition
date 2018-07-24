@@ -195,10 +195,10 @@ void nearFieldAdjust()
 void slightlyAdjust()
 {
     std::cout << "enter slightlyAdjust func" << std::endl;
-    if (digitalRead(lightSwitch[0]) == 0)
+    if (digitalRead(lightSwitch[1]) == 0)
     {
         std::cout << "left switch triggered" << std::endl;
-        if (digitalRead(lightSwitch[1]) == 0)
+        if (digitalRead(lightSwitch[3]) == 0)
         {
             std::cout << "right switch triggered" << std::endl;
             stopMotors();
@@ -215,7 +215,7 @@ void slightlyAdjust()
     else
     {
         std::cout << "left switch is not triggered" << std::endl;
-        if (digitalRead(lightSwitch[1]) == 0)
+        if (digitalRead(lightSwitch[3]) == 0)
         {
             std::cout << "right switch is triggered\nadjusting..." << std::endl;
             speed[0] = -MIN_SPEED;
@@ -308,9 +308,8 @@ int main()
             }
         }
         if (camera.readx(lightWidth) == -1 || lightWidth <= 100)
-        {
+        {   //if light is too small or no light in view but the light switch is triggered
             cout << "no light in view" << endl;
-            //if light is too small but the light switch is triggered
             //slide aside
             stopMotors(); //stop motor first
             //stopMotors();     //
