@@ -34,14 +34,14 @@
 
 //speed to use(100%)
 #define MIN_SPEED 0.1285 //minimum speed
-#define MID_SPEED 0.60
+#define MID_SPEED 0.50
 #define MAX_SPEED 0.80 //maximum speed
 
 //light in view(px)
 #define FULL_WIDTH 640 //image width
 #define FULL_HIGHT 480
 #define HALF_WIDTH 300 //half of the tolerate width
-#define BREAK_WIDTH 65
+#define BREAK_WIDTH 100
 #define BREAK_HIGHT 250
 
 //servo mode(degrees)
@@ -51,11 +51,11 @@
 const int lightSwitch[] =
     {1, 4, 5, 6, 26};
 
-int isLightKilled = wiringPiSetup(); //if found the black line then make it 1
-//also call wiringPiSetup before pca
-int lightNearby = 0;
-int lightWidth = 0; //the width of the light in view
-int lightHight = 0; //the hight coordinate in view
+int isLightKilled = wiringPiSetup(); //if found the light in near field light switch set to 1
+//also call wiringPiSetup before declaring a pca
+int lightNearby = 0; //if found the light in far field light switch set to 1
+int lightWidth = 0;  //the width of the light in view
+int lightHight = 0;  //the hight coordinate in view
 
 int lastSeeLight = 1;
 
@@ -83,13 +83,29 @@ void turn(double duty)
 
 void stopMotors()
 {
+    int delayTime;
+    if (abs(myMotor[0].currentSpeed) > 0.4)
+        delayTime = 200;
+    else
+        delayTime = 100;
     for (int i = 0; i < 3; ++i)
         speed[i] = -myMotor[i].currentSpeed;
     writeSpeed();
-    delay(100);
+    delay(delayTime);
     for (int i = 0; i < 3; ++i)
         speed[i] = 0;
     writeSpeed();
+}
+
+void backup(double duty)
+{
+    std::cout << "backing up..." << std::endl;
+    speed[0] = -duty;
+    speed[1] = duty;
+    speed[2] = 0;
+    writeSpeed();
+    delay(400);
+    stopMotors();
 }
 
 void slideAside()
@@ -100,7 +116,9 @@ void slideAside()
     {
         if (digitalRead(lightSwitch[0]) == 0)
         {
-            dir = 1;
+            backup(MAX_SPEED);
+            slideAside();
+            return;
         }
         else
         {
@@ -115,8 +133,9 @@ void slideAside()
     speed[1] = speed[0];
     speed[2] = dir * MAX_SPEED;
     writeSpeed();
-    delay(500);   //wait for this time
+    delay(800);   //wait for this time
     stopMotors(); //stop
+    return;
 }
 
 void findLight(double duty)
@@ -180,7 +199,7 @@ void middleFieldAdjust()
     int x = camera.readx(lightWidth, lightHight);
     double straightSpeed;
     double modifiedSpeed;
-    if (x == -1 || isLightKilled == 1 || lightWidth > BREAK_WIDTH || lightHight > BREAK_HIGHT)
+    if (x == -1 || isLightKilled == 1 || lightNearby == 1 || lightWidth > BREAK_WIDTH || lightHight > BREAK_HIGHT)
         return;
     else if (isLightKilled == 0 && lightWidth <= 60)
     {
@@ -198,11 +217,11 @@ void middleFieldAdjust()
         else if (abs(FULL_WIDTH / 2 - x) > 200)
             modifiedSpeed = 0.13;
         else if (abs(FULL_WIDTH / 2 - x) > 280)
-            modifiedSpeed = 0.2;
+            modifiedSpeed = 0.17;
         double spinSpeed = double(x < FULL_WIDTH / 2 ? 1 : -1) * modifiedSpeed;
         speed[0] = straightSpeed + spinSpeed;
         speed[1] = -straightSpeed + spinSpeed;
-        speed[2] = spinSpeed;
+        speed[2] = spinSpeed - 0.05;
     }
     writeSpeed();
     std::cout << "middleFieldAdjust speed wrote" << std::endl;
@@ -215,18 +234,29 @@ void nearFieldAdjust()
     {
         std::cout << "adjusting..." << std::endl;
         int light = camera.readx(lightWidth);
-        double straightSpeed;
-        double modifiedSpeed;
+        double straightSpeed = 0.17;
+        double modifiedSpeed = MIN_SPEED;
         if (light == -1 || isLightKilled == 1 || lightWidth <= BREAK_WIDTH)
             return;
         else if (isLightKilled == 0 && lightWidth > BREAK_WIDTH)
         {
-            straightSpeed = 0.17;
+            /*    straightSpeed = 0.17;
             modifiedSpeed = 1.3 * straightSpeed;
-            double spinSpeed = double(FULL_WIDTH / 2 - light) / double(FULL_WIDTH / 2.0 - 0.0) * 0.4 * 0.9 * /*straightSpeed */ modifiedSpeed;
+            double spinSpeed = double(FULL_WIDTH / 2 - light) / double(FULL_WIDTH / 2.0 - 0.0) * 0.4 * 0.9 * modifiedSpeed;
             speed[0] = straightSpeed + spinSpeed;
             speed[1] = -straightSpeed + spinSpeed;
-            speed[2] = spinSpeed;
+            speed[2] = spinSpeed * 1.1;*/
+            if (abs(FULL_WIDTH / 2 - light) > 100)
+            {
+                for (int i = 0; i < 3; ++i)
+                    speed[i] = double(light < FULL_WIDTH / 2 ? 1 : -1) * modifiedSpeed;
+            }
+            else
+            {
+                speed[0] = straightSpeed;
+                speed[1] = -straightSpeed;
+                speed[2] = 0;
+            }
         }
         writeSpeed();
     }
@@ -270,8 +300,6 @@ void slightlyAdjust()
             {
                 std::cout << "no light in view or too small" << std::endl;
                 slideAside();
-                delay(300);
-                stopMotors();
                 isLightKilled = 0;
                 std::cout << "reset isLightKilled" << std::endl;
                 return;
@@ -292,12 +320,6 @@ void slightlyAdjust()
 
 void killLight()
 {
-
-    if (digitalRead(lightSwitch[0] == 0 || lightSwitch[2] == 0 || lightSwitch[4] == 0))
-    {
-        std::cout << "far light switch triggered!\nlightNearby set to 1" << std::endl;
-        lightNearby = 1;
-    }
     if (digitalRead(lightSwitch[1]) == 0 || digitalRead(lightSwitch[3]) == 0)
     {
         std::cout << "light switch triggered!\nisLightKilled set to 1" << std::endl;
@@ -305,13 +327,13 @@ void killLight()
     }
 }
 
-void backup(double duty)
+void avoidLight()
 {
-    std::cout << "backing up..." << std::endl;
-    speed[0] = -duty;
-    speed[1] = duty;
-    speed[2] = 0;
-    writeSpeed();
+    if (digitalRead(lightSwitch[0] == 0 || lightSwitch[2] == 0 || lightSwitch[4] == 0))
+    {
+        std::cout << "far light switch triggered!\nlightNearby set to 1" << std::endl;
+        lightNearby = 1;
+    }
 }
 
 void setup()
@@ -321,11 +343,13 @@ void setup()
     for (int i = 0; i < 5; i++)
     {
         pinMode(lightSwitch[i], INPUT);
-        wiringPiISR(lightSwitch[i], INT_EDGE_FALLING, &killLight);
+        //wiringPiISR(lightSwitch[i], INT_EDGE_FALLING, &killLight);
     }
-    /*    wiringPiISR(lightSwitch[1], INT_EDGE_FALLING, &killLight);
+    wiringPiISR(lightSwitch[0], INT_EDGE_FALLING, &avoidLight);
+    wiringPiISR(lightSwitch[1], INT_EDGE_FALLING, &killLight);
+    wiringPiISR(lightSwitch[2], INT_EDGE_FALLING, &avoidLight);
     wiringPiISR(lightSwitch[3], INT_EDGE_FALLING, &killLight);
-*/
+    wiringPiISR(lightSwitch[4], INT_EDGE_FALLING, &avoidLight);
 
     isLightKilled = 0;
 
@@ -356,30 +380,29 @@ int main()
                 stopMotors();
                 nearFieldAdjust();
             }
-            else if (lightNearby == 1 && lightWidth <= BREAK_WIDTH / 0.75)
+            else if (isLightKilled == 0 && lightNearby == 1 && lightWidth <= 86)
             {
                 stopMotors();
                 slideAside();
-                delay(500);
-                stopMotors();
                 lightNearby = 0;
+                isLightKilled = 0;
             }
         }
-        if (camera.readx(lightWidth) == -1 || lightWidth <= 100)
+        stopMotors();
+        if (camera.readx(lightWidth) == -1 || lightWidth <= 86)
         { //if light is too small or no light in view but the light switch is triggered
             cout << "no light in view" << endl;
             //slide aside
-            stopMotors(); //stop motor first
+            //stopMotors(); //stop motor first
             //stopMotors();     //
             slideAside();
-            delay(300);
-            stopMotors();
             isLightKilled = 0; //initiate isLightKilled
+            lightNearby = 0;
         }
         else
         {
             cout << "light nearby" << endl;
-            stopMotors();
+            //stopMotors();
             slightlyAdjust();
             stopMotors();
             cout << "slightlyAdjust done!\nkilling light" << endl;
@@ -389,10 +412,9 @@ int main()
             delay(650);
             cout << "light killed!" << endl;
             backup(MAX_SPEED);
-            delay(300);
-            stopMotors();
             cout << "backing up done!\ninitializing isLightKilled" << endl;
             isLightKilled = 0;
+            lightNearby = 0;
         }
     }
 
